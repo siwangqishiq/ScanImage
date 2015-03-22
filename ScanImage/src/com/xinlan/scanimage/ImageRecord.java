@@ -18,7 +18,7 @@ public class ImageRecord {
 
 	public String name;
 	public int useType;
-	public int userCount;//被引用次数
+	public int useCount;//被引用次数
 	private List<File> fileList = new ArrayList<File>();
 
 	public List<File> getFileList() {
@@ -32,7 +32,7 @@ public class ImageRecord {
 	public ImageRecord(String path) {
 		this.name = getNameByPath(path);
 		useType = NO_USE;
-		userCount = 0;//
+		useCount = 0;//
 	}
 
 	public ImageRecord(File file) {
@@ -54,6 +54,24 @@ public class ImageRecord {
 		if (!hasExist) {// 不存在 加入列表中
 			fileList.add(newFile);
 		}
+	}
+	
+	public String getFilesName(){
+		StringBuffer sb = new StringBuffer();
+		for(File file:fileList){
+			sb.append(file.getName()+"  ");
+		}//end for each
+		return sb.toString();
+	}
+	
+	/**
+	 * 删除所有文件
+	 */
+	public void deleteFiles(){
+		for(File file:fileList){
+			System.out.println("删除文件:"+file.getAbsolutePath());
+			file.deleteOnExit();
+		}//end for each
 	}
 
 	public static String getNameByPath(String path) {

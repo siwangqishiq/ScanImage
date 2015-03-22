@@ -20,16 +20,21 @@ import java.util.Map;
 public class Scan {
 	private static Map<String, ImageRecord> imageMap = new HashMap<String, ImageRecord>();
 	private static List<File> srcFileList = new ArrayList<File>();
+	private static List<File> xmlList = new ArrayList<File>();
+
+	private static List<String> usePictures = new ArrayList<String>();
 
 	public static void main(String[] args) {
 		System.out.println("任务开始...");
-		// File rootFile = new File(
-		// "/Users/panyi/git/Android-Fetcher/Android-Feather");
-
-		File rootFile = new File("/Users/panyi/git/ImageZoomLibrary");
+//		 File rootFile = new File(
+//		 "/Users/panyi/git/Android-Fetcher/Android-Feather");
+		//File rootFile = new File("/Users/panyi/app/work/DiskCacheDemo");
+		 File rootFile = new File("/Users/panyi/git/ImageZoomLibrary");
+		// File rootFile = new File("/Users/panyi/git/BabeShow/Babeshow");
 		File[] allFiles = rootFile.listFiles();
 		File resFiles = null;
 		File srcFiles = null;
+		File mainfestFile = null;// 布局文件夹
 		// 找到res文件夹
 		for (File file : allFiles) {
 			if (file.getAbsolutePath().contains("res")) {
@@ -38,6 +43,10 @@ public class Scan {
 
 			if (file.getAbsolutePath().contains("src")) {
 				srcFiles = file;
+			}
+			
+			if (file.getAbsolutePath().contains("AndroidManifest.xml")) {
+				mainfestFile = file;
 			}
 		}// end for each
 		if (resFiles == null) {
@@ -53,7 +62,6 @@ public class Scan {
 			if (path.contains("drawable")) {
 				imageFiles.add(file);
 			}
-			// System.out.println(path);
 		}// end for each
 
 		// 图片导入操作
@@ -69,10 +77,99 @@ public class Scan {
 		}// end if
 
 		for (File srcFile : srcFileList) {
-			 System.out.println("分析代码文件--->" + srcFile.getAbsolutePath());
+			System.out.println("分析代码文件--->" + srcFile.getName());
 			analysisSrcFile(srcFile);
 		}// end for each
 
+		searchXmlFile(resFiles);// 搜寻资源目录下的xml文件
+
+		for (File xmlFile : xmlList) {
+			System.out.println("分析" + xmlFile.getName() + "文件 ");
+			analysisResXmlLayoutFile(xmlFile);
+		}// end for each
+		
+		//读取分析manifest文件
+		if(mainfestFile!=null){
+			analysisResXmlLayoutFile(mainfestFile);
+		}else{
+			System.out.println("未发现AndroidManifest文件");
+		}
+		
+		// 统计图片
+		for (String imageName : usePictures) {
+			ImageRecord record = imageMap.get(imageName);
+			if (record != null) {
+				System.out.println("使用图片--->" + record.name);
+				record.useCount++;
+			}
+		}// end for each
+
+		List<ImageRecord> canDeleteImageList = new ArrayList<ImageRecord>();
+		for (String key : imageMap.keySet()) {
+			ImageRecord record = imageMap.get(key);
+			if (record.useCount < 1) {
+				System.out.println("未被使用图片:" + record.getFilesName());
+				canDeleteImageList.add(record);
+			}// end
+		}// end for each
+
+		System.out.println("共有" + canDeleteImageList.size() + "张图片未被使用");
+		for(ImageRecord record:canDeleteImageList){
+			record.deleteFiles();
+		}
+	}
+
+	/**
+	 * 搜寻所有xml文件
+	 * 
+	 * @param rootFile
+	 */
+	public static void searchXmlFile(File rootFile) {
+		File[] files = rootFile.listFiles();
+		for (File file : files) {
+			if (file.isFile() && file.getName().endsWith(".xml")) {
+				xmlList.add(file);
+			} else if (file.isDirectory()) {
+				searchXmlFile(file);
+			}
+		}// end for each
+	}
+
+	/**
+	 * 分析布局文件 读取文件内容
+	 * 
+	 * @param file
+	 */
+	public static void analysisResXmlLayoutFile(File file) {
+		String content = readFile(file);// 读取文件内容
+		// System.out.println("xml文件内容--->" + content);
+		//
+		List<String> findImages = new ArrayList<String>();
+		analysisImage(content, "@drawable/", findImages);
+		for (String imageName : findImages) {
+			System.out.println("扫描到的图 片名称--->" + imageName);
+		}// end for each
+		usePictures.addAll(findImages);
+	}
+
+	private static void analysisImage(String content, String reg,
+			List<String> list) {
+		int index = -1;
+		int begin = 0;
+		do {
+			index = content.indexOf(reg, begin);
+			// System.out.println("index="+index);
+			if (index > 0) {
+				int startIndex = index + reg.length();
+				int endIndex = startIndex + 1;
+				while (isDrawableChar(content.charAt(endIndex))) {
+					endIndex++;
+				}// end while
+				String imageName = content.substring(startIndex, endIndex);
+				list.add(imageName);
+				begin = endIndex;
+			}// end if
+		} while (index > 0);
 	}
 
 	/**
@@ -83,28 +180,12 @@ public class Scan {
 	public static void analysisSrcFile(File file) {
 		String content = readFile(file);// 读取文件内容
 		List<String> findImages = new ArrayList<String>();
-		System.out.println(content);
-
-		int index = -1;
-		int begin = 0;
-		do {
-			index = content.indexOf("R.drawable.", begin);
-			//System.out.println("index="+index);
-			if (index > 0) {
-				int startIndex = index+"R.drawable.".length();
-				int endIndex = startIndex+1;
-				while(isDrawableChar(content.charAt(endIndex))){
-					endIndex++;
-				}//end while
-				String imageName = content.substring(startIndex, endIndex);
-				findImages.add(imageName);
-				begin = endIndex;
-			}// end if
-		} while (index > 0);
-
+		// System.out.println(content);
+		analysisImage(content, "R.drawable.", findImages);
 		for (String imageName : findImages) {
 			System.out.println("扫描到的图片名称--->" + imageName);
 		}// end for each
+		usePictures.addAll(findImages);
 	}
 
 	/**
