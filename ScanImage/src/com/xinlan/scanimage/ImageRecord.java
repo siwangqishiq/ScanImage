@@ -81,7 +81,7 @@ public class ImageRecord {
 		} else {// 普通图片
 			index = path.lastIndexOf(".");
 		}
-		int divIndex = path.lastIndexOf("/") + 1;
+		int divIndex = path.lastIndexOf(File.separatorChar) + 1;
 		return path.substring(divIndex, index).trim();
 	}
 }// end class
